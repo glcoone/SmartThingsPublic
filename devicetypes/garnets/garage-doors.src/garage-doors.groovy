@@ -38,14 +38,15 @@ metadata {
 
         // Add Capability for 2 Garage Doors that can: Open, Close, Turn Light On/Off, and LOCKout wireless remostes
         command "pushMainGD"
-        command "mainGDLightOn"
-        command "mainGDLightOff"
-        command "lock1"
-        command "unlock1"
         command "pushSmallGD"
+        command "closeAll"
+        command "mainGDLightOn"
         command "smallGDLightOn"
+        command "mainGDLightOff"
         command "smallGDLightOff"
+        command "lock1"
         command "lock2"
+        command "unlock1"
         command "unlock2"
         command "subscribeAction"
         
@@ -96,7 +97,7 @@ metadata {
 			state "default", label:'Close Main', action:"door control.close", icon:"st.doors.garage.garage-closing"
 		}
     	standardTile("closeAll", "device.door", inactiveLabel: false, decoration: "flat") {
-			state "default", label:'Close All', action:"door control.closeAll", icon:"st.doors.garage.garage-closing"
+			state "default", label:'Close All', action:"closeAll", icon:"st.doors.garage.garage-closing"
 		}
 
         standardTile("mainGD_Light", "device.mainGD_Light", canChangeBackground: true) {
@@ -257,11 +258,26 @@ def close() {  ///// Close Main GD /////
     }
 }
 def closeAll() {  ///// Close both Doors /////
-    log.debug "Executing 'closeAll' = 'closeall'"
-    close()  ///// Closes Main Door /////
-    if (state.smallGD == "open" || state.smallGD == "opening") {  //// Guard /////
+    log.debug "***** Executing 'closeAll' = 'closeall'"
+    //// Guard for closing both Doors w/ delay between cmds as Arduino can't handle without a little dalay /////
+    if ((state.mainGD == "open" || state.mainGD == "opening") && (state.smallGD == "open" || state.smallGD == "opening")) {  
     	sendEvent(name: "allGD",   value: "closing", isStateChange: true, display: true)
-    	sendEvent(name: "smallGD", value: "closing", isStateChange: true, display: true)
+    	sendEvent(name: "mainGD",  value: "closing", isStateChange: true, display: true)
+        sendEvent(name: "smallGD", value: "closing", isStateChange: true, display: true)
+        delayBetween([
+            zigbee.smartShield(text: "mainGD on").format(),
+            zigbee.smartShield(text: "smallGD on").format()
+            ], 1000
+        )
+    }
+    else if (state.mainGD == "open" || state.mainGD == "opening") {  ///// Guard /////
+    	sendEvent(name: "allGD",   value: "closing", isStateChange: true, display: true)
+    	sendEvent(name: "mainGD",  value: "closing", isStateChange: true, display: true)
+        pushMainGD()
+    }
+    else if (state.smallGD == "open" || state.smallGD == "opening") {  ///// Guard /////
+    	sendEvent(name: "allGD",   value: "closing", isStateChange: true, display: true)
+    	sendEvent(name: "smallGD",  value: "closing", isStateChange: true, display: true)
         pushSmallGD()
     }
 }
@@ -277,7 +293,8 @@ def mainGDLightOn() {
     // Return type will vary depending on the device
     log.debug "--- " + device.currentValue("door")
     log.debug "--- " + device.latestValue("lock")
-    zigbee.smartShield(text: "mainGD_Light on").format()
+    //zigbee.smartShield(text: "mainGD_Light on").format()
+    sendEvent(name: "smallGD_Light", value: "on", isStateChange: true, display: true) 
 }
 
 def smallGDLightOn() {
